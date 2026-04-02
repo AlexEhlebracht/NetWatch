@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 import httpx
 from icmplib import async_ping
-from .config import KNOWN_DEVICES, SERVICES
+from app.config import KNOWN_DEVICES, SERVICES
 
 async def ping_device(ip: str) -> tuple[bool, Optional[float]]:
     try:

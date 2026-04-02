@@ -7,13 +7,13 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import asyncio
 
-from .database import init_db, get_db
-from .models import Device, PingHistory, ServiceCheck, Alert
-from .scanner import scan_all_devices, check_all_services
-from .alerts import send_discord_alert, send_service_alert
-from .proxmox import get_node_stats, get_vm_stats, get_storage_stats
-from .websocket_manager import manager
-from .config import KNOWN_DEVICES, SCAN_INTERVAL
+from app.database import init_db, get_db
+from app.models import Device, PingHistory, ServiceCheck, Alert
+from app.scanner import scan_all_devices, check_all_services
+from app.alerts import send_discord_alert, send_service_alert
+from app.proxmox import get_node_stats, get_vm_stats, get_storage_stats
+from app.websocket_manager import manager
+from app.config import KNOWN_DEVICES, SCAN_INTERVAL
 
 device_states = {}
 service_states = {}

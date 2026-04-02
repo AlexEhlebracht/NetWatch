@@ -1,5 +1,5 @@
 from proxmoxer import ProxmoxAPI
-from .config import PROXMOX_HOST, PROXMOX_USER, PROXMOX_PASSWORD
+from app.config import PROXMOX_HOST, PROXMOX_USER, PROXMOX_PASSWORD
 import ssl
 
 def get_proxmox_client():

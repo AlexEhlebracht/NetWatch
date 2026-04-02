@@ -1,6 +1,6 @@
 import httpx
 from datetime import datetime
-from .config import DISCORD_WEBHOOK_URL
+from app.config import DISCORD_WEBHOOK_URL
 
 async def send_discord_alert(device_name: str, ip: str, alert_type: str, message: str):
     if not DISCORD_WEBHOOK_URL:
