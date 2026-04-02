@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+psycopg2-binary
+apscheduler
+python-dotenv
+proxmoxer
+requests
+icmplib
+httpx
+discord-webhook
+pysnmp
