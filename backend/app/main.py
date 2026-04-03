@@ -113,8 +113,18 @@ scheduler = AsyncIOScheduler()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Device))
+        existing_devices = result.scalars().all()
+        for device in existing_devices:
+            device_states[device.ip] = device.is_online
+    
     for device in KNOWN_DEVICES:
-        device_states[device["ip"]] = None
+        if device["ip"] not in device_states:
+            device_states[device["ip"]] = None
+    
     scheduler.add_job(run_scan, "interval", seconds=SCAN_INTERVAL)
     scheduler.start()
     print(f"NetWatch started — scanning every {SCAN_INTERVAL} seconds")
