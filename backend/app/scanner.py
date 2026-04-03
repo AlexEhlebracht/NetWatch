@@ -1,16 +1,27 @@
 import asyncio
-import socket
+import subprocess
+import re
 from datetime import datetime
 from typing import Optional
 import httpx
-from icmplib import async_ping
 from app.config import KNOWN_DEVICES, SERVICES
 
 async def ping_device(ip: str) -> tuple[bool, Optional[float]]:
     try:
-        host = await async_ping(ip, count=1, timeout=2, privileged=False)
-        if host.is_alive:
-            return True, round(host.avg_rtt, 2)
+        result = await asyncio.create_subprocess_exec(
+            "ping", "-c", "1", "-W", "2", ip,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=5)
+        
+        if result.returncode == 0:
+            output = stdout.decode()
+            match = re.search(r'time=(\d+\.?\d*)', output)
+            if match:
+                latency = round(float(match.group(1)), 2)
+                return True, latency
+            return True, None
         return False, None
     except Exception:
         return False, None
