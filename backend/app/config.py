@@ -5,7 +5,7 @@ load_dotenv()
 
 KNOWN_DEVICES = [
     {"name": "Netgear Router", "ip": "192.168.1.1", "type": "router"},
-    {"name": "TP-Link Switch", "ip": "192.168.1.2", "type": "switch"},
+    {"name": "TP-Link Switch", "ip": "192.168.1.130", "type": "switch"},
     {"name": "Proxmox Host", "ip": "192.168.1.105", "type": "server"},
     {"name": "Webserver VM", "ip": "192.168.1.126", "type": "vm"},
     {"name": "Postgres VM", "ip": "192.168.1.125", "type": "vm"},
