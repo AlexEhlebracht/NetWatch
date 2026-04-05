@@ -1,0 +1,77 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --bg-primary: #080812;
+  --bg-secondary: #0f0f1c;
+  --bg-card: rgba(255, 255, 255, 0.02);
+  --bg-card-hover: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(147, 51, 234, 0.3);
+  --text-primary: #e8e8f0;
+  --text-secondary: #888899;
+  --text-muted: #444455;
+  --purple: #9333ea;
+  --purple-light: #a855f7;
+  --purple-soft: rgba(147, 51, 234, 0.15);
+  --pink: #ec4899;
+  --pink-light: #f472b6;
+  --pink-soft: rgba(236, 72, 153, 0.12);
+  --blue: #3b82f6;
+  --blue-light: #60a5fa;
+  --blue-soft: rgba(59, 130, 246, 0.12);
+  --green: #10b981;
+  --green-soft: rgba(16, 185, 129, 0.12);
+  --red: #ef4444;
+  --red-soft: rgba(239, 68, 68, 0.12);
+  --amber: #f59e0b;
+  --amber-soft: rgba(245, 158, 11, 0.12);
+  --glow-purple: rgba(147, 51, 234, 0.12);
+  --glow-pink: rgba(236, 72, 153, 0.08);
+  --sidebar-width: 220px;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f4f4ff;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.8);
+  --bg-card-hover: rgba(255, 255, 255, 1);
+  --border: rgba(0, 0, 0, 0.07);
+  --border-hover: rgba(147, 51, 234, 0.3);
+  --text-primary: #1a1a2e;
+  --text-secondary: #666677;
+  --text-muted: #aaaacc;
+  --glow-purple: rgba(147, 51, 234, 0.06);
+  --glow-pink: rgba(236, 72, 153, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition:
+    background 0.3s,
+    color 0.3s;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(147, 51, 234, 0.3);
+  border-radius: 2px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
