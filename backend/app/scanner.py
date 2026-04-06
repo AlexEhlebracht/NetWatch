@@ -9,7 +9,7 @@ from app.config import KNOWN_DEVICES, SERVICES
 async def ping_device(ip: str) -> tuple[bool, Optional[float]]:
     try:
         result = await asyncio.create_subprocess_exec(
-            "ping", "-c", "1", "-W", "2", ip,
+            "ping", "-c", "2", "-W", "2", ip,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )

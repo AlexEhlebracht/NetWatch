@@ -83,19 +83,11 @@ export default function ServicePanel({ services }) {
                     fontFamily: "var(--font-mono)",
                   }}
                 >
-                  {machineNames[svc.device_ip] || svc.device_ip}
+                  {machineNames[svc.ip] || svc.ip}
                   {svc.port ? `:${svc.port}` : ""}
                 </div>
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontFamily: "var(--font-mono)",
-                  color: svc.is_up ? "var(--purple-light)" : "var(--red)",
-                }}
-              >
-                {svc.is_up ? `${svc.response_time}ms` : "DOWN"}
-              </div>
+
               {svc.status_code && (
                 <div
                   style={{
@@ -114,6 +106,15 @@ export default function ServicePanel({ services }) {
                   {svc.status_code}
                 </div>
               )}
+              <div
+                style={{
+                  fontSize: 11,
+                  fontFamily: "var(--font-mono)",
+                  color: svc.is_up ? "var(--purple-light)" : "var(--red)",
+                }}
+              >
+                {svc.is_up ? `${svc.response_time}ms` : "DOWN"}
+              </div>
             </div>
           ))}
         </div>

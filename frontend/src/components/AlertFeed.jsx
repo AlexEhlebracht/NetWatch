@@ -115,7 +115,7 @@ export default function AlertFeed({ wsData }) {
                   marginBottom: 4,
                 }}
               >
-                {alert.message}
+                {alert.message.replace(/\*\*/g, "")}
               </div>
               <div
                 style={{
@@ -124,7 +124,9 @@ export default function AlertFeed({ wsData }) {
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                {new Date(alert.created_at).toLocaleString()}
+                {new Date(alert.created_at + "Z").toLocaleString("en-US", {
+                  timeZone: "America/Chicago",
+                })}
               </div>
             </div>
           ))}

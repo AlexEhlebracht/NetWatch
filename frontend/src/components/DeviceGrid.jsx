@@ -90,7 +90,7 @@ export default function DeviceGrid({ devices }) {
                 }}
               >
                 <span style={{ fontSize: 18 }}>
-                  {typeIcons[device.device_type] || typeIcons.unknown}
+                  {typeIcons[device.type] || typeIcons.unknown}
                 </span>
                 <div
                   style={{

@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import axios from "axios";
 import HealthRing from "../components/HealthRing";
 import DeviceGrid from "../components/DeviceGrid";
 import ServicePanel from "../components/ServicePanel";
@@ -8,7 +9,6 @@ import StatCard from "../components/StatCard";
 export default function Dashboard({ wsData }) {
   const devices = wsData?.devices || [];
   const services = wsData?.services || [];
-  const alerts = wsData?.alerts || [];
 
   const onlineCount = devices.filter((d) => d.is_online).length;
   const totalCount = devices.length;
@@ -23,8 +23,31 @@ export default function Dashboard({ wsData }) {
   }, [devices]);
   const servicesUp = services.filter((s) => s.is_up).length;
   const lastUpdate = wsData?.timestamp
-    ? new Date(wsData.timestamp).toLocaleTimeString()
+    ? new Date(wsData.timestamp + "Z").toLocaleTimeString("en-US", {
+        timeZone: "America/Chicago",
+      })
     : null;
+
+  const [alerts, setAlerts] = useState([]);
+  const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.108:8000";
+
+  useEffect(() => {
+    const fetchAlerts = () => {
+      axios
+        .get(`${API_URL}/api/alerts`)
+        .then((r) => setAlerts(r.data))
+        .catch(() => {});
+    };
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const last24h = alerts.filter((a) => {
+    const alertTime = new Date(a.created_at + "Z");
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return alertTime > cutoff;
+  }).length;
 
   return (
     <div>
@@ -100,7 +123,7 @@ export default function Dashboard({ wsData }) {
           />
           <StatCard
             label="Alerts"
-            value={alerts.length || 0}
+            value={last24h}
             sub="in last 24 hours"
             color="pink"
           />
