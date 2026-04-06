@@ -66,7 +66,7 @@ export default function ServicePanel({ services }) {
                     color: "var(--text-primary)",
                   }}
                 >
-                  {svc.service_name}
+                  {svc.service_name || svc.name}
                 </div>
                 <div
                   style={{
@@ -76,6 +76,7 @@ export default function ServicePanel({ services }) {
                   }}
                 >
                   {svc.device_ip}
+                  {svc.port ? `:${svc.port}` : ""}
                 </div>
               </div>
               <div
