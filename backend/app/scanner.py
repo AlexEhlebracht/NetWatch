@@ -79,6 +79,7 @@ async def check_all_services() -> list[dict]:
         service_results.append({
             "name": service["name"],
             "ip": service["ip"],
+            "port": service.get("port"),
             "is_up": is_up,
             "response_time": response_time,
             "status_code": status_code,
