@@ -60,6 +60,8 @@ async def run_scan():
                 device.latency = result["latency"]
                 if is_online:
                     device.last_seen = datetime.utcnow()
+                if result.get("mac"):
+                    device.mac = result["mac"]
             else:
                 device = Device(
                     name=result["name"],
@@ -67,6 +69,7 @@ async def run_scan():
                     device_type=result["type"],
                     is_online=is_online,
                     latency=result["latency"],
+                    mac=result.get("mac"),
                     last_seen=datetime.utcnow() if is_online else None
                 )
                 db.add(device)

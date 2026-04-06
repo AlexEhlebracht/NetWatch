@@ -39,13 +39,13 @@ function DeviceChart({ ip, timeframe }) {
           .filter((h) => h.is_online && h.latency)
           .map((h) => ({
             latency: h.latency,
-            time: new Date(h.timestamp + "Z").toLocaleTimeString("en-US", {
+            time: new Date(h.timestamp + "Z").toLocaleString("en-US", {
               timeZone: "America/Chicago",
-              hour: "2-digit",
-              minute: "2-digit",
-              ...(timeframe.minutes > 1440
-                ? { month: "short", day: "numeric" }
-                : {}),
+              ...(timeframe.minutes <= 60
+                ? { hour: "2-digit", minute: "2-digit", second: "2-digit" }
+                : timeframe.minutes <= 1440
+                  ? { hour: "2-digit", minute: "2-digit" }
+                  : { month: "short", day: "numeric", hour: "2-digit" }),
             }),
           }));
         setHistory(data);
@@ -74,6 +74,9 @@ function DeviceChart({ ip, timeframe }) {
   const avgLatency = (
     history.reduce((s, h) => s + h.latency, 0) / history.length
   ).toFixed(2);
+  const tickCount =
+    { 1: 6, 5: 10, 60: 12, 1440: 12, 10080: 7 }[timeframe.minutes] || 6;
+  const tickInterval = Math.max(0, Math.floor(history.length / tickCount) - 1);
 
   return (
     <div>
@@ -119,7 +122,7 @@ function DeviceChart({ ip, timeframe }) {
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="rgba(255,255,255,0.04)"
+            stroke="rgba(255, 255, 255, 0.2)"
           />
           <XAxis
             dataKey="time"
@@ -128,8 +131,8 @@ function DeviceChart({ ip, timeframe }) {
               fill: "var(--text-muted)",
               fontFamily: "var(--font-mono)",
             }}
-            interval="preserveStartEnd"
             tickLine={false}
+            interval={tickInterval}
           />
           <YAxis
             domain={["auto", "auto"]}

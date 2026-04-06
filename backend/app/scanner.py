@@ -6,6 +6,26 @@ from typing import Optional
 import httpx
 from app.config import KNOWN_DEVICES, SERVICES
 
+async def get_arp_table() -> dict:
+    try:
+        result = await asyncio.create_subprocess_exec(
+            "arp", "-a",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, _ = await result.communicate()
+        macs = {}
+        for line in stdout.decode().splitlines():
+            parts = line.split()
+            if len(parts) >= 4:
+                ip = parts[1].strip('()')
+                mac = parts[3]
+                if mac != '<incomplete>':
+                    macs[ip] = mac
+        return macs
+    except Exception:
+        return {}
+
 async def ping_device(ip: str) -> tuple[bool, Optional[float]]:
     try:
         result = await asyncio.create_subprocess_exec(
@@ -53,6 +73,7 @@ async def check_http_service(url: str) -> tuple[bool, Optional[float], Optional[
 async def scan_all_devices() -> list[dict]:
     tasks = [ping_device(d["ip"]) for d in KNOWN_DEVICES]
     results = await asyncio.gather(*tasks)
+    macs = await get_arp_table()
     
     scan_results = []
     for device, (is_online, latency) in zip(KNOWN_DEVICES, results):
@@ -62,6 +83,7 @@ async def scan_all_devices() -> list[dict]:
             "type": device["type"],
             "is_online": is_online,
             "latency": latency,
+            "mac": macs.get(device["ip"]),
             "timestamp": datetime.utcnow()
         })
     return scan_results
