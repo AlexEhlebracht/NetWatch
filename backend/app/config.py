@@ -16,7 +16,7 @@ KNOWN_DEVICES = [
 
 SERVICES = [
     {"name": "Nginx", "ip": "192.168.1.126", "port": 80, "type": "http", "url": "http://192.168.1.126"},
-    {"name": "Daphne", "ip": "192.168.1.126", "port": 80, "type": "http", "url": "http://192.168.1.126/chat/admin/"},
+    {"name": "Daphne", "ip": "192.168.1.126", "port": 80, "type": "http", "url": "http://192.168.1.126/chat/api/token/"},
     {"name": "PostgreSQL", "ip": "192.168.1.125", "port": 5432, "type": "tcp"},
     {"name": "MinIO API", "ip": "192.168.1.120", "port": 9000, "type": "http", "url": "http://192.168.1.120:9000/minio/health/live"},
     {"name": "Redis", "ip": "192.168.1.127", "port": 6379, "type": "tcp"},

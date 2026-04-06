@@ -1,4 +1,12 @@
 export default function ServicePanel({ services }) {
+  const machineNames = {
+    "192.168.1.126": "Webserver VM",
+    "192.168.1.125": "Postgres VM",
+    "192.168.1.120": "MinIO VM",
+    "192.168.1.127": "Redis VM",
+    "192.168.1.108": "NetWatch VM",
+  };
+
   return (
     <div
       style={{
@@ -75,7 +83,7 @@ export default function ServicePanel({ services }) {
                     fontFamily: "var(--font-mono)",
                   }}
                 >
-                  {svc.device_ip}
+                  {machineNames[svc.device_ip] || svc.device_ip}
                   {svc.port ? `:${svc.port}` : ""}
                 </div>
               </div>
@@ -95,11 +103,11 @@ export default function ServicePanel({ services }) {
                     padding: "2px 8px",
                     borderRadius: 6,
                     background:
-                      svc.status_code < 400
+                      svc.status_code < 500
                         ? "var(--green-soft)"
                         : "var(--red-soft)",
                     color:
-                      svc.status_code < 400 ? "var(--green)" : "var(--red)",
+                      svc.status_code < 500 ? "var(--green)" : "var(--red)",
                     fontFamily: "var(--font-mono)",
                   }}
                 >
