@@ -148,8 +148,8 @@ async def get_devices(db: AsyncSession = Depends(get_db)):
     return devices
 
 @app.get("/api/devices/{ip}/history")
-async def get_device_history(ip: str, db: AsyncSession = Depends(get_db)):
-    cutoff = datetime.utcnow() - timedelta(hours=24)
+async def get_device_history(ip: str, minutes: int = 1440, db: AsyncSession = Depends(get_db)):
+    cutoff = datetime.utcnow() - timedelta(minutes=minutes)
     result = await db.execute(
         select(PingHistory)
         .where(PingHistory.device_ip == ip)
