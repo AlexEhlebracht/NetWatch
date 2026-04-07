@@ -29,8 +29,7 @@ export default function Dashboard({ wsData }) {
     : null;
 
   const [alerts, setAlerts] = useState([]);
-  const API_URL =
-    import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
+  const API_URL = `${window.location.protocol}//${window.location.host}`;
 
   useEffect(() => {
     const fetchAlerts = () => {

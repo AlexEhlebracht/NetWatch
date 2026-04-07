@@ -19,10 +19,8 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    const WS_URL =
-      import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}/ws`;
-    const API_URL =
-      import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
+    const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws`;
     let ws;
     let reconnectTimer;
 

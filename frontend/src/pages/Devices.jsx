@@ -10,8 +10,7 @@ import {
   XAxis,
 } from "recharts";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
+const API_URL = `${window.location.protocol}//${window.location.host}`;
 
 const typeIcons = {
   router: "🌐",

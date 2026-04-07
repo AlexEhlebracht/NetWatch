@@ -10,8 +10,7 @@ import {
   XAxis,
 } from "recharts";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
+const API_URL = `${window.location.protocol}//${window.location.host}`;
 const HISTORY_MINUTES = 60;
 const X_TICK_MINUTES = 10;
 const Y_TICK_COUNT = 6;

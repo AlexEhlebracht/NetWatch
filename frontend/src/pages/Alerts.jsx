@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
+const API_URL = `${window.location.protocol}//${window.location.host}`;
 
 export default function Alerts({ wsData }) {
   const [alerts, setAlerts] = useState([]);
