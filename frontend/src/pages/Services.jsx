@@ -12,24 +12,50 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.108:8000";
 
+function formatServiceAxisTime(value) {
+  return new Date(value).toLocaleTimeString("en-US", {
+    timeZone: "America/Chicago",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+function formatServiceTooltipTime(value) {
+  const d = new Date(value);
+  return d.toLocaleString("en-US", {
+    timeZone: "America/Chicago",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 function ServiceChart({ serviceName, deviceIp }) {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
     axios
-      .get(`${API_URL}/api/services/${deviceIp}/${serviceName}/history`)
+      .get(
+        `${API_URL}/api/services/${deviceIp}/${serviceName}/history?minutes=60`,
+      )
       .then((r) => {
+        let lastTime = null;
         const data = r.data
-          .filter((s) => s.response_time)
-          .slice(-60)
+          .filter((s) => s.response_time != null)
+          .filter((s) => {
+            const t = new Date(s.timestamp + "Z").getTime();
+            if (lastTime === null || t - lastTime >= 0.5 * 60 * 1000) {
+              lastTime = t;
+              return true;
+            }
+            return false;
+          })
           .map((s) => ({
             response_time: s.response_time,
-            time: new Date(s.timestamp + "Z").toLocaleString("en-US", {
-              timeZone: "America/Chicago",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            }),
+            ts: new Date(s.timestamp + "Z").getTime(),
           }));
         setHistory(data);
       })
@@ -53,12 +79,13 @@ function ServiceChart({ serviceName, deviceIp }) {
     );
 
   return (
-    <ResponsiveContainer width="100%" height={80}>
+    <ResponsiveContainer width="100%" height={200}>
       <LineChart
         data={history}
         margin={{ top: 4, right: 8, bottom: 4, left: 28 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+
         <YAxis
           tick={{
             fontSize: 8,
@@ -69,7 +96,23 @@ function ServiceChart({ serviceName, deviceIp }) {
           width={24}
           domain={["auto", "auto"]}
         />
-        <XAxis dataKey="time" hide />
+
+        <XAxis
+          dataKey="ts"
+          type="number"
+          scale="time"
+          domain={["dataMin", "dataMax"]}
+          tick={{
+            fontSize: 8,
+            fill: "var(--text-muted)",
+            fontFamily: "var(--font-mono)",
+          }}
+          tickLine={false}
+          tickCount={6}
+          padding={{ left: 10, right: 10 }}
+          tickFormatter={formatServiceAxisTime}
+        />
+
         <Line
           type="monotone"
           dataKey="response_time"
@@ -78,9 +121,11 @@ function ServiceChart({ serviceName, deviceIp }) {
           dot={false}
           isAnimationActive={false}
         />
+
         <Tooltip
           isAnimationActive={false}
           cursor={{ stroke: "rgba(59,130,246,0.3)", strokeWidth: 1 }}
+          labelFormatter={formatServiceTooltipTime}
           content={({ active, payload, label }) => {
             if (!active || !payload?.length) return null;
             return (
@@ -109,7 +154,14 @@ function ServiceChart({ serviceName, deviceIp }) {
                     marginTop: 2,
                   }}
                 >
-                  {label}
+                  {new Date(label).toLocaleString("en-US", {
+                    timeZone: "America/Chicago",
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
                 </div>
               </div>
             );
@@ -141,7 +193,11 @@ export default function Services({ wsData }) {
     const key = `${s.device_ip}:${s.service_name}`;
     if (!latest[key]) latest[key] = s;
   });
-  const latestServices = Object.values(latest);
+  const latestServices = Object.values(latest).sort((a, b) => {
+    if (a.device_ip !== b.device_ip)
+      return a.device_ip.localeCompare(b.device_ip);
+    return a.service_name.localeCompare(b.service_name);
+  });
 
   const upCount = latestServices.filter((s) => s.is_up).length;
 
@@ -310,7 +366,11 @@ export default function Services({ wsData }) {
                         color: svc.is_up ? "var(--blue-light)" : "var(--red)",
                       }}
                     >
-                      {svc.response_time ? `${svc.response_time}ms` : "—"}
+                      {svc.response_time != null
+                        ? `${svc.response_time}ms`
+                        : svc.is_up
+                          ? "< 1ms"
+                          : "—"}
                     </div>
                     <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
                       response
@@ -345,9 +405,12 @@ export default function Services({ wsData }) {
                           },
                           {
                             label: "Response Time",
-                            value: svc.response_time
-                              ? `${svc.response_time}ms`
-                              : "—",
+                            value:
+                              svc.response_time != null
+                                ? `${svc.response_time}ms`
+                                : svc.is_up
+                                  ? "< 1ms"
+                                  : "—",
                           },
                           {
                             label: "Last Check",

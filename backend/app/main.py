@@ -214,8 +214,8 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 @app.get("/api/services/{ip}/{name}/history")
-async def get_service_history(ip: str, name: str, db: AsyncSession = Depends(get_db)):
-    cutoff = datetime.utcnow() - timedelta(hours=24)
+async def get_service_history(ip: str, name: str, minutes: int = 60, db: AsyncSession = Depends(get_db)):
+    cutoff = datetime.utcnow() - timedelta(minutes=minutes)
     result = await db.execute(
         select(ServiceCheck)
         .where(ServiceCheck.device_ip == ip)
