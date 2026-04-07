@@ -3,7 +3,8 @@ import axios from "axios";
 
 export default function AlertFeed({ wsData }) {
   const [alerts, setAlerts] = useState([]);
-  const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.108:8000";
+  const API_URL =
+    import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
 
   useEffect(() => {
     axios
