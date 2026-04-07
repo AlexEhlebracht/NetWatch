@@ -75,3 +75,23 @@ body {
 .mono {
   font-family: var(--font-mono);
 }
+
+.react-flow__pane {
+  cursor: default !important;
+}
+
+.react-flow__node {
+  cursor: default !important;
+}
+
+.react-flow__node-group {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-group:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}

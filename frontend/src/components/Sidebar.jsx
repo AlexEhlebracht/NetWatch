@@ -2,6 +2,7 @@ export default function Sidebar({ page, setPage, theme, setTheme, connected }) {
   const nav = [
     { id: "dashboard", label: "Overview", icon: "⬡" },
     { id: "devices", label: "Devices", icon: "◈" },
+    { id: "topology", label: "Topology", icon: "⬡" },
     { id: "services", label: "Services", icon: "◎" },
     { id: "proxmox", label: "Proxmox", icon: "▣" },
     { id: "alerts", label: "Alerts", icon: "◬" },

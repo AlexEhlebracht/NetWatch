@@ -517,15 +517,15 @@ export default function Devices({ wsData }) {
                     <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
                       latency
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        marginLeft: 8,
-                      }}
-                    >
-                      {isExpanded ? "▲" : "▼"}
-                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      marginLeft: 8,
+                    }}
+                  >
+                    {isExpanded ? "▲" : "▼"}
                   </div>
                 </div>
 

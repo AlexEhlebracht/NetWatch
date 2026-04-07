@@ -5,6 +5,7 @@ import Devices from "./pages/Devices";
 import Services from "./pages/Services";
 import ProxmoxPage from "./pages/ProxmoxPage";
 import Alerts from "./pages/Alerts";
+import Topology from "./pages/Topology";
 import "./index.css";
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
     services: Services,
     proxmox: ProxmoxPage,
     alerts: Alerts,
+    topology: Topology,
   };
   const PageComponent = pages[page] || Dashboard;
 
