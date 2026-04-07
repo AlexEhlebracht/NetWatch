@@ -35,6 +35,7 @@ class ServiceCheck(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     device_ip: Mapped[str] = mapped_column(String(15), nullable=False)
     service_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     is_up: Mapped[bool] = mapped_column(Boolean, nullable=False)
     response_time: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
