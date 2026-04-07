@@ -20,6 +20,7 @@ function formatServiceAxisTime(value) {
     hour12: true,
   });
 }
+
 function formatServiceTooltipTime(value) {
   const d = new Date(value);
   return d.toLocaleString("en-US", {
@@ -42,9 +43,15 @@ function ServiceChart({ serviceName, deviceIp }) {
         `${API_URL}/api/services/${deviceIp}/${serviceName}/history?minutes=60`,
       )
       .then((r) => {
+        const oneHourAgo = Date.now() - 60 * 60 * 1000;
         let lastTime = null;
+
         const data = r.data
           .filter((s) => s.response_time != null)
+          .filter((s) => {
+            const t = new Date(s.timestamp + "Z").getTime();
+            return !Number.isNaN(t) && t >= oneHourAgo;
+          })
           .filter((s) => {
             const t = new Date(s.timestamp + "Z").getTime();
             if (lastTime === null || t - lastTime >= 0.5 * 60 * 1000) {
@@ -57,6 +64,7 @@ function ServiceChart({ serviceName, deviceIp }) {
             response_time: s.response_time,
             ts: new Date(s.timestamp + "Z").getTime(),
           }));
+
         setHistory(data);
       })
       .catch(() => {});
@@ -92,9 +100,9 @@ function ServiceChart({ serviceName, deviceIp }) {
             fill: "var(--text-muted)",
             fontFamily: "var(--font-mono)",
           }}
-          tickFormatter={(v) => `${v}ms`}
-          width={24}
-          domain={["auto", "auto"]}
+          tickFormatter={(v) => `${v.toFixed(1)}ms`}
+          width={28}
+          domain={[0, "auto"]}
         />
 
         <XAxis
@@ -145,7 +153,7 @@ function ServiceChart({ serviceName, deviceIp }) {
                     fontFamily: "var(--font-mono)",
                   }}
                 >
-                  {payload[0].value}ms
+                  {Number(payload[0].value).toFixed(2)}ms
                 </div>
                 <div
                   style={{
@@ -183,6 +191,7 @@ export default function Services({ wsData }) {
         .then((r) => setServices(r.data))
         .catch(() => {});
     };
+
     fetch();
     const interval = setInterval(fetch, 5000);
     return () => clearInterval(interval);
@@ -193,9 +202,11 @@ export default function Services({ wsData }) {
     const key = `${s.device_ip}:${s.service_name}`;
     if (!latest[key]) latest[key] = s;
   });
+
   const latestServices = Object.values(latest).sort((a, b) => {
-    if (a.device_ip !== b.device_ip)
+    if (a.device_ip !== b.device_ip) {
       return a.device_ip.localeCompare(b.device_ip);
+    }
     return a.service_name.localeCompare(b.service_name);
   });
 
@@ -252,7 +263,9 @@ export default function Services({ wsData }) {
                 key={key}
                 style={{
                   background: "var(--bg-card)",
-                  border: `1px solid ${isExpanded ? "rgba(59,130,246,0.3)" : "var(--border)"}`,
+                  border: `1px solid ${
+                    isExpanded ? "rgba(59,130,246,0.3)" : "var(--border)"
+                  }`,
                   borderRadius: 14,
                   overflow: "hidden",
                   transition: "border-color 0.2s",
@@ -310,6 +323,7 @@ export default function Services({ wsData }) {
                       >
                         {svc.service_name}
                       </span>
+
                       <span
                         style={{
                           fontSize: 9,
@@ -325,6 +339,7 @@ export default function Services({ wsData }) {
                       >
                         {svc.is_up ? "healthy" : "down"}
                       </span>
+
                       {svc.status_code && (
                         <span
                           style={{
@@ -346,6 +361,7 @@ export default function Services({ wsData }) {
                         </span>
                       )}
                     </div>
+
                     <div
                       style={{
                         fontSize: 11,
@@ -414,11 +430,12 @@ export default function Services({ wsData }) {
                           },
                           {
                             label: "Last Check",
-                            value: new Date(
-                              svc.timestamp + "Z",
-                            ).toLocaleTimeString("en-US", {
-                              timeZone: "America/Chicago",
-                            }),
+                            value: new Date(svc.timestamp).toLocaleTimeString(
+                              "en-US",
+                              {
+                                timeZone: "America/Chicago",
+                              },
+                            ),
                           },
                         ].map((item) => (
                           <div
@@ -453,6 +470,7 @@ export default function Services({ wsData }) {
                           </div>
                         ))}
                       </div>
+
                       <div
                         style={{
                           fontSize: 10,
@@ -464,6 +482,7 @@ export default function Services({ wsData }) {
                       >
                         Response Time History
                       </div>
+
                       <ServiceChart
                         serviceName={svc.service_name}
                         deviceIp={svc.device_ip}

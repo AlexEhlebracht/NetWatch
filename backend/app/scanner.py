@@ -69,7 +69,7 @@ async def check_tcp_service(ip: str, port: int) -> tuple[bool, Optional[float]]:
         elapsed = (asyncio.get_event_loop().time() - start) * 1000
         writer.close()
         await writer.wait_closed()
-        return True, round(elapsed, 2)
+        return True, round(elapsed, 3)
     except Exception:
         return False, None
 
@@ -80,7 +80,7 @@ async def check_http_service(url: str) -> tuple[bool, Optional[float], Optional[
             response = await client.get(url)
             elapsed = (asyncio.get_event_loop().time() - start) * 1000
             is_up = response.status_code < 500
-            return is_up, round(elapsed, 2), response.status_code
+            return is_up, round(elapsed, 3), response.status_code
     except Exception:
         return False, None, None
 
