@@ -19,7 +19,10 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    const WS_URL = import.meta.env.VITE_WS_URL || "ws://192.168.1.108:8000/ws";
+    const WS_URL =
+      import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}/ws`;
+    const API_URL =
+      import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
     let ws;
     let reconnectTimer;
 
