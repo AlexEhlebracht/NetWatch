@@ -163,12 +163,26 @@ async def get_device_history(ip: str, minutes: int = 1440, db: AsyncSession = De
 
 @app.get("/api/services")
 async def get_services(db: AsyncSession = Depends(get_db)):
+    from app.config import SERVICES
+    port_map = {s["name"]: s.get("port") for s in SERVICES}
+    
     result = await db.execute(
         select(ServiceCheck)
         .order_by(desc(ServiceCheck.timestamp))
         .limit(50)
     )
-    return result.scalars().all()
+    checks = result.scalars().all()
+    
+    return [{
+        "id": c.id,
+        "device_ip": c.device_ip,
+        "service_name": c.service_name,
+        "is_up": c.is_up,
+        "response_time": c.response_time,
+        "status_code": c.status_code,
+        "timestamp": c.timestamp,
+        "port": port_map.get(c.service_name)
+    } for c in checks]
 
 @app.get("/api/alerts")
 async def get_alerts(db: AsyncSession = Depends(get_db)):
