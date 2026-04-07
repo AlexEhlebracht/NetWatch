@@ -221,7 +221,7 @@ function ServiceChart({ serviceName, deviceIp }) {
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="rgba(255, 255, 255, 0.12)"
+            stroke="rgba(255, 255, 255, 0.29)"
           />
 
           <YAxis
@@ -258,7 +258,7 @@ function ServiceChart({ serviceName, deviceIp }) {
           />
 
           <Line
-            type="linear"
+            type="monotone"
             dataKey="response_time"
             stroke="var(--blue-light)"
             strokeWidth={1.5}

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, delete
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
@@ -17,9 +17,20 @@ from app.config import KNOWN_DEVICES, SCAN_INTERVAL
 
 device_states = {}
 service_states = {}
+device_failure_counts = {}
+FAILURE_THRESHOLD = 2
+
+async def cleanup_old_data():
+    from app.database import AsyncSessionLocal
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(PingHistory).where(PingHistory.timestamp < cutoff))
+        await db.execute(delete(ServiceCheck).where(ServiceCheck.timestamp < cutoff))
+        await db.commit()
+        print("Cleaned up old data")
 
 async def run_scan():
-    from .database import AsyncSessionLocal
+    from app.database import AsyncSessionLocal
     
     scan_results = await scan_all_devices()
     service_results = await check_all_services()
@@ -31,11 +42,18 @@ async def run_scan():
         for result in scan_results:
             ip = result["ip"]
             is_online = result["is_online"]
-            
+
+            if not is_online:
+                device_failure_counts[ip] = device_failure_counts.get(ip, 0) + 1
+            else:
+                device_failure_counts[ip] = 0
+
+            effective_online = is_online or device_failure_counts.get(ip, 0) < FAILURE_THRESHOLD
+
             prev_state = device_states.get(ip)
-            if prev_state is not None and prev_state != is_online:
-                status = "came online" if is_online else "went offline"
-                alert_type = "online" if is_online else "offline"
+            if prev_state is not None and prev_state != effective_online:
+                status = "came online" if effective_online else "went offline"
+                alert_type = "online" if effective_online else "offline"
                 message = f"**{result['name']}** ({ip}) has {status}"
                 
                 await send_discord_alert(result["name"], ip, alert_type, message)
@@ -45,20 +63,20 @@ async def run_scan():
                     device_name=result["name"],
                     alert_type=alert_type,
                     message=message,
-                    resolved=is_online,
-                    resolved_at=datetime.utcnow() if is_online else None
+                    resolved=effective_online,
+                    resolved_at=datetime.utcnow() if effective_online else None
                 )
                 db.add(alert)
             
-            device_states[ip] = is_online
+            device_states[ip] = effective_online
             
             existing = await db.execute(select(Device).where(Device.ip == ip))
             device = existing.scalar_one_or_none()
             
             if device:
-                device.is_online = is_online
+                device.is_online = effective_online
                 device.latency = result["latency"]
-                if is_online:
+                if effective_online:
                     device.last_seen = datetime.utcnow()
                 if result.get("mac"):
                     device.mac = result["mac"]
@@ -67,17 +85,17 @@ async def run_scan():
                     name=result["name"],
                     ip=ip,
                     device_type=result["type"],
-                    is_online=is_online,
+                    is_online=effective_online,
                     latency=result["latency"],
                     mac=result.get("mac"),
-                    last_seen=datetime.utcnow() if is_online else None
+                    last_seen=datetime.utcnow() if effective_online else None
                 )
                 db.add(device)
             
             ping = PingHistory(
                 device_ip=ip,
                 latency=result["latency"],
-                is_online=is_online
+                is_online=effective_online
             )
             db.add(ping)
         
@@ -93,6 +111,7 @@ async def run_scan():
             check = ServiceCheck(
                 device_ip=result["ip"],
                 service_name=result["name"],
+                port=result.get("port"),
                 is_up=result["is_up"],
                 response_time=result["response_time"],
                 status_code=result.get("status_code")
@@ -129,6 +148,7 @@ async def lifespan(app: FastAPI):
             device_states[device["ip"]] = None
     
     scheduler.add_job(run_scan, "interval", seconds=SCAN_INTERVAL)
+    scheduler.add_job(cleanup_old_data, "interval", hours=24)
     scheduler.start()
     print(f"NetWatch started — scanning every {SCAN_INTERVAL} seconds")
     yield
@@ -204,15 +224,6 @@ async def get_proxmox():
         "storage": storage_stats
     }
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-
 @app.get("/api/services/{ip}/{name}/history")
 async def get_service_history(ip: str, name: str, minutes: int = 60, db: AsyncSession = Depends(get_db)):
     cutoff = datetime.utcnow() - timedelta(minutes=minutes)
@@ -224,3 +235,12 @@ async def get_service_history(ip: str, name: str, minutes: int = 60, db: AsyncSe
         .order_by(ServiceCheck.timestamp)
     )
     return result.scalars().all()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
