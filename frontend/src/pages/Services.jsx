@@ -10,7 +10,8 @@ import {
   XAxis,
 } from "recharts";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.108:8000";
+const API_URL =
+  import.meta.env.VITE_API_URL || `http://${window.location.hostname}`;
 const HISTORY_MINUTES = 60;
 const X_TICK_MINUTES = 10;
 const Y_TICK_COUNT = 6;
