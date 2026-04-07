@@ -27,6 +27,48 @@ const TIMEFRAMES = [
   { label: "24h", minutes: 1440 },
 ];
 
+function formatAxisTime(value, timeframeMinutes) {
+  const d = new Date(value);
+
+  if (timeframeMinutes <= 5) {
+    return d.toLocaleTimeString("en-US", {
+      timeZone: "America/Chicago",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  }
+
+  if (timeframeMinutes <= 1440) {
+    return d.toLocaleTimeString("en-US", {
+      timeZone: "America/Chicago",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
+  return d.toLocaleDateString("en-US", {
+    timeZone: "America/Chicago",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatTooltipTime(value) {
+  const d = new Date(value);
+  return d.toLocaleString("en-US", {
+    timeZone: "America/Chicago",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 function DeviceChart({ ip, timeframe }) {
   const [history, setHistory] = useState([]);
 
@@ -35,11 +77,21 @@ function DeviceChart({ ip, timeframe }) {
       .get(`${API_URL}/api/devices/${ip}/history?minutes=${timeframe.minutes}`)
       .then((r) => {
         const intervalMinutes =
-          { 1: 1 / 6, 5: 0.5, 60: 5, 1440: 120 }[timeframe.minutes] || 5;
+          { 1: 1 / 12, 5: 1 / 12, 60: 1 / 12, 1440: 3 }[timeframe.minutes] ||
+          1 / 12;
+
+        console.log(
+          "timeframe:",
+          timeframe.minutes,
+          "interval:",
+          intervalMinutes,
+          "points:",
+          r.data.length,
+        );
 
         let lastTime = null;
         const filteredData = r.data
-          .filter((h) => h.is_online && h.latency)
+          .filter((h) => h.is_online && h.latency != null)
           .filter((h) => {
             const t = new Date(h.timestamp + "Z").getTime();
             if (
@@ -51,25 +103,13 @@ function DeviceChart({ ip, timeframe }) {
             }
             return false;
           })
-          .map((h) => ({
-            latency: h.latency,
-            time: (() => {
-              const d = new Date(h.timestamp + "Z");
-              return d.toLocaleString("en-US", {
-                timeZone: "America/Chicago",
-                ...(timeframe.minutes <= 5
-                  ? {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: false,
-                    }
-                  : timeframe.minutes <= 1440
-                    ? { hour: "2-digit", minute: "2-digit", hour12: true }
-                    : { month: "short", day: "numeric" }),
-              });
-            })(),
-          }));
+          .map((h) => {
+            const ts = new Date(h.timestamp + "Z").getTime();
+            return {
+              latency: h.latency,
+              ts,
+            };
+          });
 
         setHistory(filteredData);
       })
@@ -97,8 +137,8 @@ function DeviceChart({ ip, timeframe }) {
   const avgLatency = (
     history.reduce((s, h) => s + h.latency, 0) / history.length
   ).toFixed(2);
+
   const tickCount = { 1: 6, 5: 10, 60: 12, 1440: 12 }[timeframe.minutes] || 6;
-  const tickInterval = Math.max(0, Math.floor(history.length / tickCount) - 1);
 
   return (
     <div>
@@ -137,6 +177,7 @@ function DeviceChart({ ip, timeframe }) {
           {history.length} samples
         </div>
       </div>
+
       <div
         style={{
           outline: "none",
@@ -164,17 +205,25 @@ function DeviceChart({ ip, timeframe }) {
               strokeDasharray="3 3"
               stroke="rgba(255, 255, 255, 0.2)"
             />
+
             <XAxis
-              dataKey="time"
+              dataKey="ts"
+              type="number"
+              scale="time"
+              domain={["dataMin", "dataMax"]}
+              tickCount={tickCount}
               tick={{
                 fontSize: 9,
                 fill: "var(--text-muted)",
                 fontFamily: "var(--font-mono)",
               }}
               tickLine={false}
-              interval={tickInterval}
               padding={{ left: 10, right: 10 }}
+              tickFormatter={(value) =>
+                formatAxisTime(value, timeframe.minutes)
+              }
             />
+
             <YAxis
               domain={["auto", "auto"]}
               tick={{
@@ -185,6 +234,7 @@ function DeviceChart({ ip, timeframe }) {
               tickFormatter={(v) => `${v}ms`}
               width={28}
             />
+
             <Line
               type="monotone"
               dataKey="latency"
@@ -193,7 +243,11 @@ function DeviceChart({ ip, timeframe }) {
               dot={false}
               isAnimationActive={false}
             />
+
             <Tooltip
+              cursor={{ stroke: "rgba(147,51,234,0.3)", strokeWidth: 1 }}
+              isAnimationActive={false}
+              labelFormatter={(value) => formatTooltipTime(value)}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
                 return (

@@ -198,3 +198,15 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+@app.get("/api/services/{ip}/{name}/history")
+async def get_service_history(ip: str, name: str, db: AsyncSession = Depends(get_db)):
+    cutoff = datetime.utcnow() - timedelta(hours=24)
+    result = await db.execute(
+        select(ServiceCheck)
+        .where(ServiceCheck.device_ip == ip)
+        .where(ServiceCheck.service_name == name)
+        .where(ServiceCheck.timestamp >= cutoff)
+        .order_by(ServiceCheck.timestamp)
+    )
+    return result.scalars().all()
