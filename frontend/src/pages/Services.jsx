@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import {
   LineChart,
@@ -11,6 +11,25 @@ import {
 } from "recharts";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.108:8000";
+const HISTORY_MINUTES = 60;
+const X_TICK_MINUTES = 10;
+const Y_TICK_COUNT = 6;
+
+function formatMs(value) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return "—";
+  if (n < 10) return `${n.toFixed(2)}ms`;
+  if (n < 100) return `${n.toFixed(1)}ms`;
+  return `${Math.round(n)}ms`;
+}
+
+function formatAxisMs(value) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return "—";
+  if (n < 10) return `${n.toFixed(2)}`;
+  if (n < 100) return `${n.toFixed(1)}`;
+  return `${Math.round(n)}`;
+}
 
 function formatServiceAxisTime(value) {
   return new Date(value).toLocaleTimeString("en-US", {
@@ -22,8 +41,7 @@ function formatServiceAxisTime(value) {
 }
 
 function formatServiceTooltipTime(value) {
-  const d = new Date(value);
-  return d.toLocaleString("en-US", {
+  return new Date(value).toLocaleString("en-US", {
     timeZone: "America/Chicago",
     month: "short",
     day: "numeric",
@@ -34,41 +52,132 @@ function formatServiceTooltipTime(value) {
   });
 }
 
+function buildTimeTicks(startMs, endMs, stepMinutes = 10) {
+  const stepMs = stepMinutes * 60 * 1000;
+  const firstTick = Math.ceil(startMs / stepMs) * stepMs;
+  const ticks = [];
+
+  for (let t = firstTick; t <= endMs; t += stepMs) {
+    ticks.push(t);
+  }
+
+  return ticks;
+}
+
+function niceStep(rawStep) {
+  if (rawStep <= 0) return 0.1;
+
+  const exponent = Math.floor(Math.log10(rawStep));
+  const fraction = rawStep / 10 ** exponent;
+
+  let niceFraction;
+  if (fraction <= 1) niceFraction = 1;
+  else if (fraction <= 2) niceFraction = 2;
+  else if (fraction <= 2.5) niceFraction = 2.5;
+  else if (fraction <= 5) niceFraction = 5;
+  else niceFraction = 10;
+
+  return niceFraction * 10 ** exponent;
+}
+
+function buildYAxis(history) {
+  if (!history.length) {
+    return {
+      domain: [0, 5],
+      ticks: [0, 1, 2, 3, 4, 5],
+    };
+  }
+
+  const values = history
+    .map((p) => Number(p.response_time))
+    .filter((v) => !Number.isNaN(v));
+
+  if (!values.length) {
+    return {
+      domain: [0, 5],
+      ticks: [0, 1, 2, 3, 4, 5],
+    };
+  }
+
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+
+  if (min === max) {
+    const pad = Math.max(min * 0.1, min < 10 ? 0.1 : 1);
+    min = Math.max(0, min - pad);
+    max = max + pad;
+  } else {
+    const pad = (max - min) * 0.12;
+    min = Math.max(0, min - pad);
+    max = max + pad;
+  }
+
+  const rawStep = (max - min) / (Y_TICK_COUNT - 1);
+  const step = niceStep(rawStep);
+
+  const start = Math.floor(min / step) * step;
+  const end = Math.ceil(max / step) * step;
+
+  const ticks = [];
+  for (let v = start; v <= end + step / 2; v += step) {
+    ticks.push(Number(v.toFixed(4)));
+  }
+
+  return {
+    domain: [start, end],
+    ticks,
+  };
+}
+
 function ServiceChart({ serviceName, deviceIp }) {
   const [history, setHistory] = useState([]);
+  const [domain, setDomain] = useState([
+    Date.now() - HISTORY_MINUTES * 60 * 1000,
+    Date.now(),
+  ]);
 
   useEffect(() => {
     axios
       .get(
-        `${API_URL}/api/services/${deviceIp}/${serviceName}/history?minutes=60`,
+        `${API_URL}/api/services/${deviceIp}/${serviceName}/history?minutes=${HISTORY_MINUTES}`,
       )
       .then((r) => {
-        const oneHourAgo = Date.now() - 60 * 60 * 1000;
+        const now = Date.now();
+        const oneHourAgo = now - HISTORY_MINUTES * 60 * 1000;
         let lastTime = null;
 
         const data = r.data
           .filter((s) => s.response_time != null)
-          .filter((s) => {
-            const t = new Date(s.timestamp + "Z").getTime();
-            return !Number.isNaN(t) && t >= oneHourAgo;
+          .map((s) => {
+            const ts = new Date(s.timestamp + "Z").getTime();
+            return {
+              response_time: Number(s.response_time),
+              ts,
+            };
           })
+          .filter(
+            (s) => !Number.isNaN(s.ts) && s.ts >= oneHourAgo && s.ts <= now,
+          )
           .filter((s) => {
-            const t = new Date(s.timestamp + "Z").getTime();
-            if (lastTime === null || t - lastTime >= 0.5 * 60 * 1000) {
-              lastTime = t;
+            if (lastTime === null || s.ts - lastTime >= 30 * 1000) {
+              lastTime = s.ts;
               return true;
             }
             return false;
-          })
-          .map((s) => ({
-            response_time: s.response_time,
-            ts: new Date(s.timestamp + "Z").getTime(),
-          }));
+          });
 
         setHistory(data);
+        setDomain([oneHourAgo, now]);
       })
       .catch(() => {});
   }, [serviceName, deviceIp]);
+
+  const xTicks = useMemo(
+    () => buildTimeTicks(domain[0], domain[1], X_TICK_MINUTES),
+    [domain],
+  );
+
+  const yAxisConfig = useMemo(() => buildYAxis(history), [history]);
 
   if (!history.length)
     return (
@@ -87,96 +196,125 @@ function ServiceChart({ serviceName, deviceIp }) {
     );
 
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <LineChart
-        data={history}
-        margin={{ top: 4, right: 8, bottom: 4, left: 28 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+    <div className="service-chart-shell" style={{ width: "100%", height: 200 }}>
+      <style>
+        {`
+          .service-chart-shell .recharts-wrapper:focus,
+          .service-chart-shell .recharts-surface:focus,
+          .service-chart-shell svg:focus,
+          .service-chart-shell *:focus {
+            outline: none !important;
+          }
 
-        <YAxis
-          tick={{
-            fontSize: 8,
-            fill: "var(--text-muted)",
-            fontFamily: "var(--font-mono)",
-          }}
-          tickFormatter={(v) => `${v.toFixed(1)}ms`}
-          width={28}
-          domain={[0, "auto"]}
-        />
+          .service-chart-shell .recharts-layer:focus,
+          .service-chart-shell .recharts-active-dot:focus,
+          .service-chart-shell .recharts-dot:focus {
+            outline: none !important;
+          }
+        `}
+      </style>
 
-        <XAxis
-          dataKey="ts"
-          type="number"
-          scale="time"
-          domain={["dataMin", "dataMax"]}
-          tick={{
-            fontSize: 8,
-            fill: "var(--text-muted)",
-            fontFamily: "var(--font-mono)",
-          }}
-          tickLine={false}
-          tickCount={6}
-          padding={{ left: 10, right: 10 }}
-          tickFormatter={formatServiceAxisTime}
-        />
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={history}
+          margin={{ top: 4, right: 12, bottom: 4, left: 36 }}
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="rgba(255, 255, 255, 0.12)"
+          />
 
-        <Line
-          type="monotone"
-          dataKey="response_time"
-          stroke="var(--blue-light)"
-          strokeWidth={1.5}
-          dot={false}
-          isAnimationActive={false}
-        />
+          <YAxis
+            type="number"
+            allowDecimals={true}
+            domain={yAxisConfig.domain}
+            ticks={yAxisConfig.ticks}
+            width={36}
+            tick={{
+              fontSize: 8,
+              fill: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+            }}
+            tickFormatter={formatAxisMs}
+          />
 
-        <Tooltip
-          isAnimationActive={false}
-          cursor={{ stroke: "rgba(59,130,246,0.3)", strokeWidth: 1 }}
-          labelFormatter={formatServiceTooltipTime}
-          content={({ active, payload, label }) => {
-            if (!active || !payload?.length) return null;
-            return (
-              <div
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                  padding: "6px 10px",
-                }}
-              >
+          <XAxis
+            dataKey="ts"
+            type="number"
+            scale="time"
+            domain={domain}
+            ticks={xTicks}
+            interval={0}
+            minTickGap={20}
+            tick={{
+              fontSize: 8,
+              fill: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+            }}
+            tickLine={false}
+            axisLine={{ stroke: "rgba(255, 255, 255, 0.15)" }}
+            padding={{ left: 0, right: 0 }}
+            tickFormatter={formatServiceAxisTime}
+          />
+
+          <Line
+            type="linear"
+            dataKey="response_time"
+            stroke="var(--blue-light)"
+            strokeWidth={1.5}
+            dot={false}
+            activeDot={{
+              r: 3,
+              stroke: "var(--blue-light)",
+              strokeWidth: 1,
+              fill: "var(--bg-card)",
+            }}
+            isAnimationActive={false}
+            connectNulls={false}
+          />
+
+          <Tooltip
+            isAnimationActive={false}
+            cursor={{ stroke: "rgba(59,130,246,0.3)", strokeWidth: 1 }}
+            labelFormatter={formatServiceTooltipTime}
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+
+              return (
                 <div
                   style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "var(--blue-light)",
-                    fontFamily: "var(--font-mono)",
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    padding: "6px 10px",
                   }}
                 >
-                  {Number(payload[0].value).toFixed(2)}ms
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "var(--blue-light)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {formatMs(payload[0].value)}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "var(--text-muted)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {formatServiceTooltipTime(label)}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "var(--text-muted)",
-                    marginTop: 2,
-                  }}
-                >
-                  {new Date(label).toLocaleString("en-US", {
-                    timeZone: "America/Chicago",
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}
-                </div>
-              </div>
-            );
-          }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+              );
+            }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -383,7 +521,7 @@ export default function Services({ wsData }) {
                       }}
                     >
                       {svc.response_time != null
-                        ? `${svc.response_time}ms`
+                        ? formatMs(svc.response_time)
                         : svc.is_up
                           ? "< 1ms"
                           : "—"}
@@ -423,7 +561,7 @@ export default function Services({ wsData }) {
                             label: "Response Time",
                             value:
                               svc.response_time != null
-                                ? `${svc.response_time}ms`
+                                ? formatMs(svc.response_time)
                                 : svc.is_up
                                   ? "< 1ms"
                                   : "—",
@@ -434,6 +572,10 @@ export default function Services({ wsData }) {
                               "en-US",
                               {
                                 timeZone: "America/Chicago",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                                hour12: true,
                               },
                             ),
                           },

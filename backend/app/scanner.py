@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 import httpx
 from app.config import KNOWN_DEVICES, SERVICES
+import time
 
 async def get_arp_table() -> dict:
     try:
@@ -62,25 +63,25 @@ async def ping_device(ip: str) -> tuple[bool, Optional[float]]:
 
 async def check_tcp_service(ip: str, port: int) -> tuple[bool, Optional[float]]:
     try:
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(ip, port), timeout=3
         )
-        elapsed = (asyncio.get_event_loop().time() - start) * 1000
+        elapsed = (time.perf_counter() - start) * 1000
         writer.close()
         await writer.wait_closed()
-        return True, round(elapsed, 3)
+        return True, elapsed
     except Exception:
         return False, None
 
 async def check_http_service(url: str) -> tuple[bool, Optional[float], Optional[int]]:
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            start = asyncio.get_event_loop().time()
+            start = time.perf_counter()
             response = await client.get(url)
-            elapsed = (asyncio.get_event_loop().time() - start) * 1000
+            elapsed = (time.perf_counter() - start) * 1000
             is_up = response.status_code < 500
-            return is_up, round(elapsed, 3), response.status_code
+            return is_up, elapsed, response.status_code
     except Exception:
         return False, None, None
 

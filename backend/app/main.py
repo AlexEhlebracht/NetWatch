@@ -185,11 +185,11 @@ async def get_services(db: AsyncSession = Depends(get_db)):
     } for c in checks]
 
 @app.get("/api/alerts")
-async def get_alerts(db: AsyncSession = Depends(get_db)):
+async def get_alerts(limit: int = 100, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Alert)
         .order_by(desc(Alert.created_at))
-        .limit(50)
+        .limit(limit)
     )
     return result.scalars().all()
 
