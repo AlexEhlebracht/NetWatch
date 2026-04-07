@@ -25,7 +25,6 @@ const TIMEFRAMES = [
   { label: "5m", minutes: 5 },
   { label: "1h", minutes: 60 },
   { label: "24h", minutes: 1440 },
-  { label: "7d", minutes: 10080 },
 ];
 
 function DeviceChart({ ip, timeframe }) {
@@ -35,20 +34,44 @@ function DeviceChart({ ip, timeframe }) {
     axios
       .get(`${API_URL}/api/devices/${ip}/history?minutes=${timeframe.minutes}`)
       .then((r) => {
-        const data = r.data
+        const intervalMinutes =
+          { 1: 1 / 6, 5: 0.5, 60: 5, 1440: 120 }[timeframe.minutes] || 5;
+
+        let lastTime = null;
+        const filteredData = r.data
           .filter((h) => h.is_online && h.latency)
+          .filter((h) => {
+            const t = new Date(h.timestamp + "Z").getTime();
+            if (
+              lastTime === null ||
+              t - lastTime >= intervalMinutes * 60 * 1000
+            ) {
+              lastTime = t;
+              return true;
+            }
+            return false;
+          })
           .map((h) => ({
             latency: h.latency,
-            time: new Date(h.timestamp + "Z").toLocaleString("en-US", {
-              timeZone: "America/Chicago",
-              ...(timeframe.minutes <= 60
-                ? { hour: "2-digit", minute: "2-digit", second: "2-digit" }
-                : timeframe.minutes <= 1440
-                  ? { hour: "2-digit", minute: "2-digit" }
-                  : { month: "short", day: "numeric", hour: "2-digit" }),
-            }),
+            time: (() => {
+              const d = new Date(h.timestamp + "Z");
+              return d.toLocaleString("en-US", {
+                timeZone: "America/Chicago",
+                ...(timeframe.minutes <= 5
+                  ? {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                      hour12: false,
+                    }
+                  : timeframe.minutes <= 1440
+                    ? { hour: "2-digit", minute: "2-digit", hour12: true }
+                    : { month: "short", day: "numeric" }),
+              });
+            })(),
           }));
-        setHistory(data);
+
+        setHistory(filteredData);
       })
       .catch(() => {});
   }, [ip, timeframe]);
@@ -74,8 +97,7 @@ function DeviceChart({ ip, timeframe }) {
   const avgLatency = (
     history.reduce((s, h) => s + h.latency, 0) / history.length
   ).toFixed(2);
-  const tickCount =
-    { 1: 6, 5: 10, 60: 12, 1440: 12, 10080: 7 }[timeframe.minutes] || 6;
+  const tickCount = { 1: 6, 5: 10, 60: 12, 1440: 12 }[timeframe.minutes] || 6;
   const tickInterval = Math.max(0, Math.floor(history.length / tickCount) - 1);
 
   return (
@@ -115,80 +137,100 @@ function DeviceChart({ ip, timeframe }) {
           {history.length} samples
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={120}>
-        <LineChart
-          data={history}
-          margin={{ top: 5, right: 10, bottom: 5, left: 30 }}
+      <div
+        style={{
+          outline: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        <ResponsiveContainer
+          width="100%"
+          height={200}
+          style={{ outline: "none", userSelect: "none" }}
         >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(255, 255, 255, 0.2)"
-          />
-          <XAxis
-            dataKey="time"
-            tick={{
-              fontSize: 9,
-              fill: "var(--text-muted)",
-              fontFamily: "var(--font-mono)",
+          <LineChart
+            data={history}
+            margin={{ top: 5, right: 10, bottom: 5, left: 30 }}
+            onMouseDown={(e) => e?.preventDefault?.()}
+            style={{
+              outline: "none",
+              userSelect: "none",
+              WebkitUserSelect: "none",
             }}
-            tickLine={false}
-            interval={tickInterval}
-          />
-          <YAxis
-            domain={["auto", "auto"]}
-            tick={{
-              fontSize: 9,
-              fill: "var(--text-muted)",
-              fontFamily: "var(--font-mono)",
-            }}
-            tickFormatter={(v) => `${v}ms`}
-            width={28}
-          />
-          <Line
-            type="monotone"
-            dataKey="latency"
-            stroke="var(--purple-light)"
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-          <Tooltip
-            content={({ active, payload, label }) => {
-              if (!active || !payload?.length) return null;
-              return (
-                <div
-                  style={{
-                    background: "var(--bg-secondary)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    padding: "8px 12px",
-                  }}
-                >
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(255, 255, 255, 0.2)"
+            />
+            <XAxis
+              dataKey="time"
+              tick={{
+                fontSize: 9,
+                fill: "var(--text-muted)",
+                fontFamily: "var(--font-mono)",
+              }}
+              tickLine={false}
+              interval={tickInterval}
+              padding={{ left: 10, right: 10 }}
+            />
+            <YAxis
+              domain={["auto", "auto"]}
+              tick={{
+                fontSize: 9,
+                fill: "var(--text-muted)",
+                fontFamily: "var(--font-mono)",
+              }}
+              tickFormatter={(v) => `${v}ms`}
+              width={28}
+            />
+            <Line
+              type="monotone"
+              dataKey="latency"
+              stroke="var(--purple-light)"
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+            />
+            <Tooltip
+              content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                return (
                   <div
                     style={{
-                      fontSize: 16,
-                      fontWeight: 700,
-                      color: "var(--purple-light)",
-                      fontFamily: "var(--font-mono)",
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      padding: "8px 12px",
                     }}
                   >
-                    {payload[0].value}ms
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: "var(--purple-light)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {payload[0].value}ms
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: "var(--text-muted)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {label}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "var(--text-muted)",
-                      marginTop: 2,
-                    }}
-                  >
-                    {label}
-                  </div>
-                </div>
-              );
-            }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+                );
+              }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -197,7 +239,7 @@ export default function Devices({ wsData }) {
   const devices = wsData?.devices || [];
   const [deviceDetails, setDeviceDetails] = useState({});
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[3]);
-  const [expanded, setExpanded] = useState(null);
+  const [expanded, setExpanded] = useState(new Set());
 
   useEffect(() => {
     axios
@@ -294,7 +336,7 @@ export default function Devices({ wsData }) {
         ) : (
           devices.map((device) => {
             const details = deviceDetails[device.ip] || {};
-            const isExpanded = expanded === device.ip;
+            const isExpanded = expanded.has(device.ip);
 
             return (
               <div
@@ -308,7 +350,17 @@ export default function Devices({ wsData }) {
                 }}
               >
                 <div
-                  onClick={() => setExpanded(isExpanded ? null : device.ip)}
+                  onClick={() =>
+                    setExpanded((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(device.ip)) {
+                        next.delete(device.ip);
+                      } else {
+                        next.add(device.ip);
+                      }
+                      return next;
+                    })
+                  }
                   style={{
                     padding: "16px 20px",
                     cursor: "pointer",
@@ -411,10 +463,15 @@ export default function Devices({ wsData }) {
                     <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
                       latency
                     </div>
-                  </div>
-
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    {isExpanded ? "▲" : "▼"}
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        marginLeft: 8,
+                      }}
+                    >
+                      {isExpanded ? "▲" : "▼"}
+                    </div>
                   </div>
                 </div>
 

@@ -22,6 +22,20 @@ async def get_arp_table() -> dict:
                 mac = parts[3]
                 if mac != '<incomplete>':
                     macs[ip] = mac
+
+        # Add local machine MAC
+        local = await asyncio.create_subprocess_exec(
+            "ip", "link", "show", "enp6s18",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        local_out, _ = await local.communicate()
+        for line in local_out.decode().splitlines():
+            if 'link/ether' in line:
+                local_mac = line.strip().split()[1]
+                macs['192.168.1.108'] = local_mac
+                break
+
         return macs
     except Exception:
         return {}
